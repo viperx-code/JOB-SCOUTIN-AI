@@ -11,3 +11,4 @@ numpy
 markdownify
 rich
 curl-cffi
+regex
