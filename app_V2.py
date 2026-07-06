@@ -106,7 +106,7 @@ def build_vector_db(file_text):
 def fetch_live_jobs(role, location, max_jobs=10):
     try:
         jobs_df = scrape_jobs(
-            site_name=["indeed", "glassdoor", "zip_recruiter"],
+            site_name=["indeed", "zip_recruiter"],
             search_term=role,
             location=location,
             results_wanted=max_jobs,
