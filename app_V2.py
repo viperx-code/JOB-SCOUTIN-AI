@@ -108,7 +108,7 @@ def fetch_live_jobs(role, location, max_jobs=10):
     try:
         # Targeting the most cloud-friendly platforms
         jobs_df = scrape_jobs(
-            site_name=["zip_recruiter", "glassdoor"],
+            site_name=["indeed"],
             search_term=role,
             location=location,
             results_wanted=max_jobs,
