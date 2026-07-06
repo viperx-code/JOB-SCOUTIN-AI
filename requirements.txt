@@ -1,0 +1,13 @@
+streamlit
+PyMuPDF
+docx2txt
+python-dotenv
+langchain-google-genai
+langchain-text-splitters
+qdrant-client
+python-jobspy
+pandas
+numpy
+markdownify
+rich
+curl-cffi
