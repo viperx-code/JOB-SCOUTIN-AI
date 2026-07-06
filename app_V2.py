@@ -102,23 +102,29 @@ def build_vector_db(file_text):
 # ==========================================
 # 2. POWERFUL DATA SCRAPING PIPELINE
 # ==========================================
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
+    """Aggressive live scraper. No dummy data. No safety nets."""
     try:
+        # Targeting the most cloud-friendly platforms
         jobs_df = scrape_jobs(
-            site_name=["indeed", "zip_recruiter"],
+            site_name=["zip_recruiter", "glassdoor"],
             search_term=role,
             location=location,
             results_wanted=max_jobs,
             country_indeed='INDIA'
         )
+        
         if jobs_df.empty:
+            st.sidebar.error("⚠️ Scraper executed, but firewalls returned 0 jobs. Try broadening the search.")
             return []
+            
         clean_jobs = jobs_df[["title", "company", "job_url", "description"]].dropna()
         return clean_jobs.to_dict(orient='records')
+        
     except Exception as e:
-        # Force the error to display on the main screen so you can see the Cloudflare block
-        st.error(f"🛑 Network Firewall Blocked the Request: {str(e)}")
+        # If it crashes, we print the EXACT error to the screen so we can hunt it down.
+        st.error(f"🛑 CRITICAL SCRAPER FAILURE: {str(e)}")
         return []
 
 def evaluate_job(db_client, job_description):
