@@ -106,7 +106,7 @@ def build_vector_db(file_text):
 def fetch_live_jobs(role, location, max_jobs=10):
     try:
         jobs_df = scrape_jobs(
-            site_name=["linkedin", "indeed"],
+            site_name=["indeed", "glassdoor", "zip_recruiter"],
             search_term=role,
             location=location,
             results_wanted=max_jobs,
@@ -117,7 +117,8 @@ def fetch_live_jobs(role, location, max_jobs=10):
         clean_jobs = jobs_df[["title", "company", "job_url", "description"]].dropna()
         return clean_jobs.to_dict(orient='records')
     except Exception as e:
-        st.sidebar.warning(f"Network Notice: Alternative ingestion routing active. ({e})")
+        # Force the error to display on the main screen so you can see the Cloudflare block
+        st.error(f"🛑 Network Firewall Blocked the Request: {str(e)}")
         return []
 
 def evaluate_job(db_client, job_description):
