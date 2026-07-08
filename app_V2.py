@@ -128,7 +128,7 @@ def fetch_live_jobs(role, location, max_jobs=10):
             return []
             
         json_response = response.json()
-        data = json_response.get("data", [])
+        data = json_response.get("jobs", json_response.get("data", []))
         
         # --- THE FIX: Defensive Type Checking ---
         # If the API changed its format and 'data' is a dictionary or string, we catch it here.
