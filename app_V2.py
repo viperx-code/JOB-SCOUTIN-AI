@@ -104,8 +104,6 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    @st.cache_data(ttl=300)
-def fetch_live_jobs(role, location, max_jobs=10):
     """Bulletproof API ingestion. Bypasses all bot-blockers."""
     try:
         url = "https://jsearch.p.rapidapi.com/search"
