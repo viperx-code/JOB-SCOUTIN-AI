@@ -104,9 +104,8 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    """Bulletproof API ingestion with validated endpoint routing."""
+    """Bulletproof API ingestion with aggressive type checking and defensive parsing."""
     try:
-        # Update: Explicitly points to the active rapidapi path structure
         url = "https://jsearch.p.rapidapi.com/search-v2"
         
         querystring = {
@@ -128,8 +127,20 @@ def fetch_live_jobs(role, location, max_jobs=10):
             st.error(f"API Failed (Status {response.status_code}): {response.text}")
             return []
             
-        data = response.json().get("data", [])
+        json_response = response.json()
+        data = json_response.get("data", [])
         
+        # --- THE FIX: Defensive Type Checking ---
+        # If the API changed its format and 'data' is a dictionary or string, we catch it here.
+        if isinstance(data, dict):
+            # Sometimes APIs hide jobs one level deeper, or return an embedded error message
+            st.error(f"API returned a Dictionary instead of a List. Raw Data: {data}")
+            return []
+            
+        if not isinstance(data, list):
+            st.error(f"API returned an unknown format: {type(data)}. Raw Data: {data}")
+            return []
+            
         if not data:
             st.sidebar.warning("Agent returned no results. Try broadening the search.")
             return []
@@ -140,7 +151,8 @@ def fetch_live_jobs(role, location, max_jobs=10):
                 "title": job.get("job_title", "Unknown Role"),
                 "company": job.get("employer_name", "Unknown Company"),
                 "job_url": job.get("job_apply_link", "#"),
-                "description": job.get("job_description", "")
+                # Fallback safely if the description key changed
+                "description": job.get("job_description", "No description provided by API.")
             })
             
         return formatted_jobs
