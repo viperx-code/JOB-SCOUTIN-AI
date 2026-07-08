@@ -3,13 +3,13 @@ import re
 import io
 import fitz  # PyMuPDF
 import docx2txt
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from jobspy import scrape_jobs
 
 # ==========================================
 # 0. INITIALIZATION & SESSION MEMORY STATE
@@ -104,27 +104,52 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    """Aggressive live scraper. No dummy data. No safety nets."""
+    @st.cache_data(ttl=300)
+def fetch_live_jobs(role, location, max_jobs=10):
+    """Bulletproof API ingestion. Bypasses all bot-blockers."""
     try:
-        # Targeting the most cloud-friendly platforms
-        jobs_df = scrape_jobs(
-            site_name=["indeed"],
-            search_term=role,
-            location=location,
-            results_wanted=max_jobs,
-            country_indeed='INDIA'
-        )
+        url = "https://jsearch.p.rapidapi.com/search"
         
-        if jobs_df.empty:
-            st.sidebar.error("⚠️ Scraper executed, but firewalls returned 0 jobs. Try broadening the search.")
+        # We pass the user's role and location directly to the API
+        querystring = {
+            "query": f"{role} in {location}",
+            "page": "1",
+            "num_pages": "1"
+        }
+        
+        headers = {
+            "X-RapidAPI-Key": st.secrets["RAPIDAPI_KEY"],
+            "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
+        }
+        
+        response = requests.get(url, headers=headers, params=querystring)
+        
+        # Check if the API request was successful
+        if response.status_code != 200:
+            st.error(f"API Connection Failed: Status {response.status_code}")
             return []
             
-        clean_jobs = jobs_df[["title", "company", "job_url", "description"]].dropna()
-        return clean_jobs.to_dict(orient='records')
+        data = response.json().get("data", [])
         
+        if not data:
+            st.sidebar.warning("Agent returned no results. Try broadening the search.")
+            return []
+            
+        # Transform the JSearch API data to match our Agent's memory format
+        formatted_jobs = []
+        for job in data[:max_jobs]:
+            # JSearch provides incredibly rich data, we extract exactly what we need
+            formatted_jobs.append({
+                "title": job.get("job_title", "Unknown Role"),
+                "company": job.get("employer_name", "Unknown Company"),
+                "job_url": job.get("job_apply_link", "#"),
+                "description": job.get("job_description", "")
+            })
+            
+        return formatted_jobs
+
     except Exception as e:
-        # If it crashes, we print the EXACT error to the screen so we can hunt it down.
-        st.error(f"🛑 CRITICAL SCRAPER FAILURE: {str(e)}")
+        st.error(f"🛑 CRITICAL API FAILURE: {str(e)}")
         return []
 
 def evaluate_job(db_client, job_description):
