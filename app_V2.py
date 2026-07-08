@@ -104,11 +104,10 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    """Bulletproof API ingestion. Bypasses all bot-blockers."""
+    """Bulletproof API ingestion handling deeply nested JSearch v2 structures."""
     try:
         url = "https://jsearch.p.rapidapi.com/search-v2"
         
-        # We pass the user's role and location directly to the API
         querystring = {
             "query": f"{role} in {location}",
             "page": "1",
@@ -116,39 +115,43 @@ def fetch_live_jobs(role, location, max_jobs=10):
         }
         
         headers = {
-            "X-RapidAPI-Key": st.secrets["RAPIDAPI_KEY"],
+            "X-RapidAPI-Key": st.secrets["RAPIDAPI_KEY"].strip(),
             "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
         }
         
         response = requests.get(url, headers=headers, params=querystring)
         
-        # Check if the API request was successful
         if response.status_code != 200:
-            st.error(f"API Connection Failed: Status {response.status_code}")
+            st.error(f"API Failed (Status {response.status_code}): {response.text}")
             return []
             
         json_response = response.json()
-
-        # UNPACKING logic (problematic section, correctly handled now)
-        # Extract the list of jobs from the dictionary (curly braces)
-        # The V2 API returns a dictionary, jobs list is under the 'jobs' key
-        # We add a fallback key 'data' just in case the API structure changes slightly
-        jobs_list = json_response.get("jobs", json_response.get("data", []))
-
-        # Now jobs_list is guaranteed to be a list, so we can iterate
+        
+        # --- THE TRUE FIX: Unpacking the double-layer dictionary ---
+        # 1. Grab the "data" payload (which we now know is a dictionary)
+        raw_data = json_response.get("data", {})
+        
+        # 2. Extract the actual list of jobs from inside that dictionary
+        if isinstance(raw_data, dict):
+            jobs_list = raw_data.get("jobs", [])
+        elif isinstance(raw_data, list):
+            jobs_list = raw_data
+        else:
+            jobs_list = []
+            
+        # 3. Final safety check
         if not jobs_list:
             st.sidebar.warning("Agent returned no results. Try broadening the search.")
             return []
             
-        # Transform the JSearch API data to match our Agent's memory format
         formatted_jobs = []
+        # Now we can safely slice because we know for an absolute fact jobs_list is a List!
         for job in jobs_list[:max_jobs]:
-            # JSearch provides incredibly rich data, we extract exactly what we need
             formatted_jobs.append({
                 "title": job.get("job_title", "Unknown Role"),
                 "company": job.get("employer_name", "Unknown Company"),
                 "job_url": job.get("job_apply_link", "#"),
-                "description": job.get("job_description", "")
+                "description": job.get("job_description", "No description provided.")
             })
             
         return formatted_jobs
