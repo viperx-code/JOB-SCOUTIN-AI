@@ -104,19 +104,21 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    """Bulletproof API ingestion. Bypasses all bot-blockers."""
+    """Bulletproof API ingestion with aggressive header sanitization."""
     try:
         url = "https://jsearch.p.rapidapi.com/search"
         
-        # We pass the user's role and location directly to the API
         querystring = {
             "query": f"{role} in {location}",
             "page": "1",
             "num_pages": "1"
         }
         
+        # CRITICAL FIX: .strip() removes any hidden spaces or newlines from your TOML file
+        clean_api_key = st.secrets["RAPIDAPI_KEY"].strip()
+        
         headers = {
-            "X-RapidAPI-Key": st.secrets["RAPIDAPI_KEY"],
+            "X-RapidAPI-Key": clean_api_key,
             "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
         }
         
@@ -124,7 +126,8 @@ def fetch_live_jobs(role, location, max_jobs=10):
         
         # Check if the API request was successful
         if response.status_code != 200:
-            st.error(f"API Connection Failed: Status {response.status_code}")
+            # We now print the EXACT error message the API sends back
+            st.error(f"API Failed (Status {response.status_code}): {response.text}")
             return []
             
         data = response.json().get("data", [])
@@ -133,10 +136,8 @@ def fetch_live_jobs(role, location, max_jobs=10):
             st.sidebar.warning("Agent returned no results. Try broadening the search.")
             return []
             
-        # Transform the JSearch API data to match our Agent's memory format
         formatted_jobs = []
         for job in data[:max_jobs]:
-            # JSearch provides incredibly rich data, we extract exactly what we need
             formatted_jobs.append({
                 "title": job.get("job_title", "Unknown Role"),
                 "company": job.get("employer_name", "Unknown Company"),
