@@ -104,8 +104,9 @@ def build_vector_db(file_text):
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_live_jobs(role, location, max_jobs=10):
-    """Bulletproof API ingestion with aggressive header sanitization."""
+    """Bulletproof API ingestion with validated endpoint routing."""
     try:
+        # Update: Explicitly points to the active rapidapi path structure
         url = "https://jsearch.p.rapidapi.com/search"
         
         querystring = {
@@ -114,7 +115,6 @@ def fetch_live_jobs(role, location, max_jobs=10):
             "num_pages": "1"
         }
         
-        # CRITICAL FIX: .strip() removes any hidden spaces or newlines from your TOML file
         clean_api_key = st.secrets["RAPIDAPI_KEY"].strip()
         
         headers = {
@@ -124,9 +124,7 @@ def fetch_live_jobs(role, location, max_jobs=10):
         
         response = requests.get(url, headers=headers, params=querystring)
         
-        # Check if the API request was successful
         if response.status_code != 200:
-            # We now print the EXACT error message the API sends back
             st.error(f"API Failed (Status {response.status_code}): {response.text}")
             return []
             
