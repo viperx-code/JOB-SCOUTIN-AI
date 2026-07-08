@@ -107,7 +107,7 @@ def fetch_live_jobs(role, location, max_jobs=10):
     """Bulletproof API ingestion with validated endpoint routing."""
     try:
         # Update: Explicitly points to the active rapidapi path structure
-        url = "https://jsearch.p.rapidapi.com/search"
+        url = "https://jsearch.p.rapidapi.com/search-v2"
         
         querystring = {
             "query": f"{role} in {location}",
